@@ -1,15 +1,26 @@
 package main
 
 import (
+	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 )
 
 type Repository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *zerolog.Logger
 }
 
-func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *gorm.DB, logger *zerolog.Logger) *Repository {
+	return &Repository{db: db, logger: logger}
+}
+
+func (r *Repository) Close() {
+	sqlDb, err := r.db.DB()
+	if err != nil {
+		r.logger.Error().Err(err).Msg("failed to close database")
+		return
+	}
+	_ = sqlDb.Close()
 }
 
 // Device-related functions

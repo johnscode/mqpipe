@@ -21,50 +21,6 @@ const (
 	topic    = "iot-messages"
 )
 
-// object structure for dealing with messages from MQTT broker
-//
-//type MQTTDeviceMessage struct {
-//	Time   time.Time  `json:"time"`
-//	Device MQTTDevice `json:"device"`
-//}
-//
-//func (m *MQTTDeviceMessage) UnmarshalJSON(data []byte) error {
-//
-//	//   to determine device type then unmarshal into proper type
-//	var raw rawMqttTempRHDeviceMessage
-//	if err := json.Unmarshal(data, &raw); err != nil {
-//		return err
-//	}
-//	m.Time = raw.Time
-//	m.Device = &raw.Device
-//	return nil
-//}
-//
-//type rawMqttTempRHDeviceMessage struct {
-//	Time   time.Time        `json:"time"`
-//	Device MQTTTempRHDevice `json:"device"`
-//}
-//
-//type MQTTDevice interface {
-//	ID() string
-//	Name() string
-//}
-//
-//type MQTTTempRHDevice struct {
-//	Id         string  `json:"id"`
-//	DeviceName string  `json:"name,omitempty"`
-//	Temp       float32 `json:"temp,omitempty"`
-//	Rh         float32 `json:"rh,omitempty"`
-//}
-//
-//func (t MQTTTempRHDevice) ID() string {
-//	return t.Id
-//}
-//
-//func (t MQTTTempRHDevice) Name() string {
-//	return t.DeviceName
-//}
-
 var mqttMsgChan = make(chan mqtt.Message)
 
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -109,7 +65,7 @@ func main() {
 	appCtx := context.Background()
 	logger := setupLogger(appCtx, "")
 
-	_ = setupPostgres(logger)
+	repo := setupPostgres(logger)
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(broker)
@@ -156,6 +112,8 @@ func main() {
 
 	// Wait for the goroutine to finish
 	wg.Wait()
+	// finally close the db connection
+	repo.Close()
 	fmt.Println("Goroutine terminated, exiting...")
 }
 
