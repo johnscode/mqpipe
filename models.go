@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -19,12 +20,13 @@ type Device interface {
 
 type DeviceModel struct {
 	BaseModel
-	DeviceID   string `gorm:"uniqueIndex" json:"device_id"`
-	DeviceName string `json:"name"`
-	DeviceType string `json:"device_type"`
+	DeviceID   string          `gorm:"uniqueIndex" json:"device_id"`
+	DeviceName string          `json:"name"`
+	DeviceType string          `json:"device_type"`
+	Properties json.RawMessage `gorm:"type:json" json:"properties"`
 }
 
-func (d DeviceModel) ID() string {
+func (d DeviceModel) DeviceId() string {
 	return d.DeviceID
 }
 
@@ -42,65 +44,15 @@ type TempRHDevice struct {
 	RH   float32 `json:"rh,omitempty"`
 }
 
-type rawTempRHDeviceMessage struct {
-	Time   time.Time    `json:"time"`
-	Device TempRHDevice `json:"device"`
-}
-
 type IoTDeviceMessage struct {
 	BaseModel
-	Time     time.Time   `json:"time"`
-	DeviceID string      `json:"device_id"`
-	Device   DeviceModel `gorm:"polymorphic:Device;" json:"device"`
+	Time       time.Time       `json:"time" gorm:"index"`
+	DeviceID   string          `json:"device_id"`
+	DeviceType string          `json:"device_type"`
+	DeviceData json.RawMessage `json:"device_data"`
 }
 
-func (m *IoTDeviceMessage) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		Time   time.Time       `json:"time"`
-		Device json.RawMessage `json:"device"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	var baseDevice DeviceModel
-	if err := json.Unmarshal(raw.Device, &baseDevice); err != nil {
-		return err
-	}
-	switch baseDevice.DeviceType {
-	case "TempRH":
-		var tempRHDevice TempRHDevice
-		if err := json.Unmarshal(raw.Device, &tempRHDevice); err != nil {
-			return err
-		}
-		m.Device = tempRHDevice.DeviceModel
-	default:
-		m.Device = baseDevice
-	}
-
-	m.DeviceID = m.Device.DeviceID
-	return nil
-}
-
-func (m IoTDeviceMessage) MarshalJSON() ([]byte, error) {
-	type Alias IoTDeviceMessage
-	return json.Marshal(&struct {
-		Alias
-		Device json.RawMessage `json:"device"`
-	}{
-		Alias:  Alias(m),
-		Device: m.marshalDevice(),
-	})
-}
-
-func (m IoTDeviceMessage) marshalDevice() json.RawMessage {
-	switch m.Device.DeviceType {
-	case "TempRH":
-		tempRH := TempRHDevice{DeviceModel: m.Device}
-		// set Temp and RH here if needed
-		data, _ := json.Marshal(tempRH)
-		return data
-	default:
-		data, _ := json.Marshal(m.Device)
-		return data
-	}
+func (m IoTDeviceMessage) Format(f fmt.State, _ rune) {
+	_, _ = fmt.Fprintf(f, "IotDeviceMessage{\n\tid: %d,\n\tCreatedAt: %s,\n\tUpdatedAt: %s,\n\tTime: %s,\n\tDeviceId: %s,\n\tDeviceType: %s,\n\tProperties: %s,\n}",
+		m.ID, m.CreatedAt, m.UpdatedAt, m.Time, m.DeviceID, m.DeviceType, m.DeviceData)
 }
