@@ -34,6 +34,6 @@ func setupPostgres(logger *zerolog.Logger) *Repository {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	repo := NewRepository(db)
+	repo := NewRepository(db, logger)
 	return repo
 }
