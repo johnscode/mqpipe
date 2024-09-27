@@ -48,16 +48,22 @@ func (r *Repository) DeleteTempRHDevice(deviceID string) error {
 
 // Message-related functions
 
-func (r *Repository) CreateMessage(message *IoTDeviceMessage) error {
+func (r *Repository) CreateMessage(message *IoTRawDeviceMessage) error {
 	return r.db.Create(message).Error
 }
 
-func (r *Repository) GetMessagesByDeviceID(deviceID uint, limit int) ([]IoTDeviceMessage, error) {
-	var messages []IoTDeviceMessage
+func (r *Repository) GetMessagesByDeviceID(deviceID uint, limit int) ([]IoTRawDeviceMessage, error) {
+	var messages []IoTRawDeviceMessage
 	err := r.db.Where("device_id = ?", deviceID).Order("timestamp desc").Limit(limit).Find(&messages).Error
 	return messages, err
 }
 
 func (r *Repository) DeleteMessagesByDeviceID(deviceID uint) error {
-	return r.db.Where("device_id = ?", deviceID).Delete(&IoTDeviceMessage{}).Error
+	return r.db.Where("device_id = ?", deviceID).Delete(&IoTRawDeviceMessage{}).Error
+}
+
+// Event Data-related functions
+
+func (r *Repository) CreateDataEvent(message *IoTDeviceDataEvent) error {
+	return r.db.Create(message).Error
 }

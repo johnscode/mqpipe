@@ -24,7 +24,7 @@ func setupPostgres(logger *zerolog.Logger) *Repository {
 	}
 
 	// Auto-migrate the schema
-	err = db.AutoMigrate(&IoTDeviceMessage{}, &DeviceModel{}, &TempRHDevice{})
+	err = db.AutoMigrate(&IoTDeviceDataEvent{}, &IoTRawDeviceMessage{}, &DeviceModel{}, &TempRHDevice{})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to migrate models")
 	}

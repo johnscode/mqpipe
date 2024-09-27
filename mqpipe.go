@@ -27,8 +27,8 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 	mqttMsgChan <- msg
 }
 
-func processMsg(ctx context.Context, logger *zerolog.Logger, input <-chan mqtt.Message) chan IoTDeviceMessage {
-	out := make(chan IoTDeviceMessage)
+func processMsg(ctx context.Context, logger *zerolog.Logger, input <-chan mqtt.Message) chan IoTRawDeviceMessage {
+	out := make(chan IoTRawDeviceMessage)
 	go func() {
 		defer close(out)
 		for {
@@ -38,15 +38,31 @@ func processMsg(ctx context.Context, logger *zerolog.Logger, input <-chan mqtt.M
 					return
 				}
 				fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-				var iotMsg IoTDeviceMessage
+				var iotMsg IoTRawDeviceMessage
 				err := json.Unmarshal(msg.Payload(), &iotMsg)
 				if err != nil {
-					logger.Error().Err(err).Msg("Error unmarshalling IoTDeviceMessage")
+					logger.Error().Err(err).Msg("Error unmarshalling IoTRawDeviceMessage")
 				} else {
 					out <- iotMsg
 				}
 			case <-ctx.Done():
 				return
+			}
+		}
+	}()
+	return out
+}
+
+func persistIoTEvent(ctx context.Context, logger *zerolog.Logger, repo *Repository, input <-chan IoTRawDeviceMessage) chan IoTRawDeviceMessage {
+	out := make(chan IoTRawDeviceMessage)
+	go func() {
+		defer close(out)
+		for iotMsg := range input {
+			logger.Info().Msg(fmt.Sprintf("Persist iot msg for device: %s", iotMsg.DeviceID))
+
+			err := repo.CreateMessage(&iotMsg)
+			if err != nil {
+				logger.Error().Err(err).Msg("Error creating IoTRawDeviceMessage")
 			}
 		}
 	}()
@@ -84,11 +100,11 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		finalChan := processMsg(ctx, logger, mqttMsgChan)
+		finalChan := persistIoTEvent(ctx, logger, repo, processMsg(ctx, logger, mqttMsgChan))
 		for iotMsg := range finalChan {
-			// now we have the mqtt message as parsed from json
+			// now we have the IoTRawDeviceMessage that has been persisted
 			logger.Info().Msg(fmt.Sprintf("Received iot msg: %+v", iotMsg))
-			// do something like save to db
+			// do something like check for alert conditions
 		}
 	}()
 
