@@ -59,8 +59,14 @@ func persistIoTEvent(ctx context.Context, logger *zerolog.Logger, repo *Reposito
 		defer close(out)
 		for iotMsg := range input {
 			logger.Info().Msg(fmt.Sprintf("Persist iot msg for device: %s", iotMsg.DeviceID))
-
-			err := repo.CreateMessage(&iotMsg)
+			msg := IoTDeviceDataEvent{
+				BaseModel:  iotMsg.BaseModel,
+				Time:       iotMsg.Time,
+				DeviceID:   iotMsg.DeviceID,
+				DeviceType: iotMsg.DeviceType,
+				DeviceData: string(iotMsg.DeviceData),
+			}
+			err := repo.CreateDataEvent(&msg)
 			if err != nil {
 				logger.Error().Err(err).Msg("Error creating IoTRawDeviceMessage")
 			}
